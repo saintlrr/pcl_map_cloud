@@ -14,10 +14,19 @@
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/segmentation/progressive_morphological_filter.h>
+#include <pcl/filters/extract_indices.h>
 #include <pcl/conversions.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+
+#define NUM 500
 
 // This function displays the help
 void
@@ -56,6 +65,10 @@ main (int argc, char** argv)
                 struct stat s2;
                 std::vector<std::vector<double> > pose_vec(0, std::vector<double> (8));
                 std::vector<double> time_list;
+
+                clock_t startTime,endTime;
+	            startTime = clock();
+
                 // read pose file
                 if (stat(argv[2], &s2) == 0)
                 {
@@ -111,6 +124,9 @@ main (int argc, char** argv)
                     }
                 }
 
+                endTime = clock();
+                std::cout << "Pose load Time : " <<(double)(endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
+
                 Eigen::Quaterniond q0;
                 Eigen::Affine3d T0 = Eigen::Affine3d::Identity();
                 Eigen::Vector3d t0(pose_vec[0][0], pose_vec[0][1], pose_vec[0][2]);
@@ -130,9 +146,12 @@ main (int argc, char** argv)
                 int count = 0;
                 while((ent = readdir(dir)) != NULL)
                 {
-                    if (count <100){
+                    if (count <NUM){
                     std::string file_name = std::string(ent->d_name);
                     if (file_name.find(".pcd") != std::string::npos){
+
+                        clock_t start_time, end_time_1, end_time_2, end_time_3;
+                        start_time = clock();
 
                         //find timestamp index
                         std::size_t found_idx = file_name.find(".pcd");
@@ -174,10 +193,53 @@ main (int argc, char** argv)
                         // Filter the point cloud
                         pcl::PointCloud<pcl::PointXYZ>::Ptr source_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ> ());
 
-                        pcl::VoxelGrid<pcl::PointXYZ> sor;
-                        sor.setInputCloud(source_cloud);
-                        sor.setLeafSize(0.1f, 0.1f, 0.1f);
-                        sor.filter(*source_cloud_filtered);
+                        // VoxelGrid filter
+                        // pcl::VoxelGrid<pcl::PointXYZ> sor;
+                        // sor.setInputCloud(source_cloud);
+                        // sor.setLeafSize(0.1f, 0.1f, 0.1f);
+                        // sor.filter(*source_cloud_filtered);
+
+                        //ProgressiveMorphological filter
+                        // pcl::PointIndicesPtr ground (new pcl::PointIndices);
+                        // pcl::ProgressiveMorphologicalFilter<pcl::PointXYZ> pmf;
+                        // pmf.setMaxWindowSize(20);
+                        // pmf.setSlope(1.0f);
+                        // pmf.setInitialDistance(0.5f);
+                        // pmf.setInputCloud(source_cloud);
+                        // pmf.setMaxDistance(3.0f);
+                        // pmf.extract(ground->indices);
+
+                        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+                        pcl::PointIndices::Ptr ground (new pcl::PointIndices);
+                        // Create the segmentation object
+                        pcl::SACSegmentation<pcl::PointXYZ> seg;
+                        // Optional
+                        seg.setOptimizeCoefficients (true);
+                        // Mandatory
+                        seg.setModelType (pcl::SACMODEL_PLANE);
+                        seg.setMethodType (pcl::SAC_RANSAC);
+                        seg.setDistanceThreshold (0.01);
+
+                        seg.setInputCloud (source_cloud);
+                        seg.segment (*ground, *coefficients);
+
+                        pcl::ExtractIndices<pcl::PointXYZ> extract;
+                        extract.setInputCloud (source_cloud);
+                        extract.setIndices (ground);
+                        extract.filter (*source_cloud_filtered);
+
+                        end_time_1 = clock();
+                        std::cout << "ground filter Time : " <<(double)(end_time_1 - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+
+                        // outlier removal
+                        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+                        sor.setInputCloud (source_cloud_filtered);
+                        sor.setMeanK (50);
+                        sor.setStddevMulThresh (1.0);
+                        sor.filter (*source_cloud_filtered);
+
+                        end_time_2 = clock();
+                        std::cout << "Outlier filter Time : " <<(double)(end_time_2 - end_time_1) / CLOCKS_PER_SEC << "s" << std::endl;
 
                         std::cout << "PointCloud before filtering: " << source_cloud->width * source_cloud->height 
                             << " data points (" << pcl::getFieldsList (*source_cloud) << ").";
@@ -192,16 +254,19 @@ main (int argc, char** argv)
 
                         *map_cloud = *map_cloud + *transformed_cloud;
 
+                        end_time_3 = clock();
+                        std::cout << "Total Time : " <<(double)(end_time_3 - end_time_2) / CLOCKS_PER_SEC << "s" << std::endl;
+
 
                         // pcl::visualization::PCLVisualizer viewer ("pose pointcloud");
 
                         // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> transformed_cloud_color_handler (transformed_cloud, 230, 20, 20); // Red
                         // viewer.addPointCloud (transformed_cloud, transformed_cloud_color_handler, "transformed_cloud" + file_name);
-                        // viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud" + file_name);
+                        // viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 0.01, "transformed_cloud" + file_name);
 
                         // viewer.addCoordinateSystem (1.0, "cloud", 0);
                         // viewer.setBackgroundColor(0.05, 0.05, 0.05, 0); // Setting background to a dark grey
-                        // viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "transformed_cloud");
+                        // viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 0.01, "transformed_cloud");
                         // //viewer.setPosition(800, 400); // Setting visualiser window position
 
                         // while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
@@ -211,6 +276,7 @@ main (int argc, char** argv)
                         printf ("%s\n", ent->d_name);
                         frame_idx += 1;
                     }
+                    std::cout << "count :" << count << std::endl;
                     // count += 1;
                     }
                 }
@@ -225,6 +291,20 @@ main (int argc, char** argv)
                 sor.setLeafSize(0.1f, 0.1f, 0.1f);
                 sor.filter(*map_cloud_filtered);
 
+                // pcl::PointIndicesPtr ground (new pcl::PointIndices);
+                // pcl::ProgressiveMorphologicalFilter<pcl::PointXYZ> pmf;
+                // pmf.setMaxWindowSize(20);
+                // pmf.setSlope(1.0f);
+                // pmf.setInitialDistance(0.5f);
+                // pmf.setInputCloud(map_cloud);
+                // pmf.setMaxDistance(3.0f);
+                // pmf.extract(ground->indices);
+
+                // pcl::ExtractIndices<pcl::PointXYZ> extract;
+                // extract.setInputCloud (map_cloud);
+                // extract.setIndices (ground);
+                // extract.filter (*map_cloud_filtered);
+
                 std::cout << "PointCloud before filtering: " << map_cloud->width * map_cloud->height 
                     << " data points (" << pcl::getFieldsList (*map_cloud) << ").";
                 std::cout << "PointCloud after filtering: " << map_cloud_filtered->width * map_cloud_filtered->height 
@@ -233,6 +313,9 @@ main (int argc, char** argv)
                 pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> map_cloud_color_handler (map_cloud_filtered, 230, 230, 230);
                 viewer.addPointCloud (map_cloud_filtered, map_cloud_color_handler, "map_cloud");
                 viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 0.01, "map_cloud");
+
+                endTime = clock();
+                std::cout << "Total Time : " <<(double)(endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
 
                 while (!viewer.wasStopped ()) { // Display the visualiser until 'q' key is pressed
                     viewer.spinOnce ();
