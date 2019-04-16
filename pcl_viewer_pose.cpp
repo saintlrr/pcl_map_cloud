@@ -20,13 +20,14 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
+// #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#define NUM 500
+#define NUM 50
+#define DOWNSAMPLE_RATE 10
 
 // This function displays the help
 void
@@ -36,6 +37,74 @@ showHelp(char * program_name)
     std::cout << "Usage: " << program_name << " cloud_filename.[pcd|ply]" << std::endl;
     std::cout << "-h:  Show this help." << std::endl;
 }
+
+// downsample frame
+template <typename T>
+std::vector<T> downSample(std::vector<T> vec, int rate = DOWNSAMPLE_RATE)
+{
+    std::vector<T> vec_new;
+    typename std::vector<T>::iterator vec_iterator;
+    for (vec_iterator = vec.begin(); vec_iterator != vec.end(); vec_iterator += DOWNSAMPLE_RATE)
+    {
+        vec_new.push_back(*vec_iterator);
+    }
+    return vec_new;
+}
+
+// filter and downsample point cloud
+template <typename PointT> void
+downSample_filter (pcl::PointCloud<PointT> &source_cloud, pcl::PointCloud<PointT> &source_cloud_filtered. filter_type="VoxelGrid")
+{
+    clock_t start_time, end_time;
+    start_time = clock();
+    if (filter_type == "VoxelGrid"){
+        pcl::VoxelGrid<PointT> sor;
+        sor.setInputCloud(source_cloud);
+        sor.setLeafSize(0.1f, 0.1f, 0.1f);
+        sor.filter(*source_cloud_filtered);
+    }
+    else if (filter_type == "Progressive")
+    {
+        pcl::PointIndicesPtr ground (new pcl::PointIndices);
+        pcl::ProgressiveMorphologicalFilter<pcl::PointXYZ> pmf;
+        pmf.setMaxWindowSize(20);
+        pmf.setSlope(1.0f);
+        pmf.setInitialDistance(0.5f);
+        pmf.setInputCloud(source_cloud);
+        pmf.setMaxDistance(3.0f);
+        pmf.extract(ground->indices);
+
+        pcl::ExtractIndices<PointT> extract;
+        extract.setInputCloud (source_cloud);
+        extract.setIndices (ground);
+        extract.filter (*source_cloud_filtered);
+    }
+    else if (filter_type == "SACSeg")
+    {
+        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+        pcl::PointIndices::Ptr ground (new pcl::PointIndices);
+        // Create the segmentation object
+        pcl::SACSegmentation<PointT> seg;
+        // Optional
+        seg.setOptimizeCoefficients (true);
+        // Mandatory
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setDistanceThreshold (0.01);
+
+        seg.setInputCloud (source_cloud);
+        seg.segment (*ground, *coefficients);
+
+         pcl::ExtractIndices<PointT> extract;
+        extract.setInputCloud (source_cloud);
+        extract.setIndices (ground);
+        extract.filter (*source_cloud_filtered);
+    }
+    end_time = clock();
+    std::cout << "ground filter Time : " <<(double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+}
+
+// filter ground point cloud
 
 // This is the main function
 int
@@ -63,7 +132,8 @@ main (int argc, char** argv)
             if ((dir = opendir(argv[1])) != NULL)
             {
                 struct stat s2;
-                std::vector<std::vector<double> > pose_vec(0, std::vector<double> (8));
+                // std::vector<std::vector<double> > pose_vecs(0, std::vector<double> (8));
+                std::vector<std::vector<double> > pose_vecs;
                 std::vector<double> time_list;
 
                 clock_t startTime,endTime;
@@ -76,8 +146,8 @@ main (int argc, char** argv)
                     {
                         std::string line;
                         ifstream pose_file (argv[2]);
-                        int line_idx = 0;
-                        int pose_ele_idx = 0;
+                        // int line_idx = 0;
+                        // int pose_ele_idx = 0;
                         if (pose_file.is_open())
                         {
                             while ( getline (pose_file,line) )
@@ -85,30 +155,37 @@ main (int argc, char** argv)
                                 // std::cout << line << '\n';
                                 std::string  pose_ele_string;
                                 std::istringstream tmp(line);
-                                pose_vec.resize(line_idx+1);
+                                std::vector<double> pose_vec;
+                                // pose_vecs.resize(line_idx+1);
                                 while( getline(tmp, pose_ele_string, ' '))
                                 {
                                     std::string::size_type sz;
                                     double pose_ele = std::stold(pose_ele_string, &sz);
                                     // std::cout << pose_ele <<std::endl;
-                                    pose_vec[line_idx].resize(8);
-                                    pose_vec[line_idx][pose_ele_idx] = pose_ele;
-                                    if (pose_ele_idx == 3){
-                                        time_list.push_back(pose_ele);
-                                    }
-                                    pose_ele_idx += 1;
+                                    // pose_vecs[line_idx].resize(8);
+                                    // pose_vecs[line_idx][pose_ele_idx] = pose_ele;
+                                    pose_vec.push_back(pose_ele);
+                                    // if (pose_ele_idx == 3){
+                                    //     time_list.push_back(pose_ele);
+                                    // }
+                                    // pose_ele_idx += 1;
                                 }
-                                pose_ele_idx = 0;
-                                line_idx += 1;
-
+                                time_list.push_back(pose_vec[3]);
+                                pose_vecs.push_back(pose_vec);
+                                // pose_ele_idx = 0;
+                                // line_idx += 1;
                             }
                             pose_file.close();
+
+                            time_list = downSample(time_list);
+                            pose_vecs = downSample(pose_vecs);
+
                             // cout the pose data
-                            // for (int i = 0; i < pose_vec.size(); i++)
+                            // for (int i = 0; i < pose_vecs.size(); i++)
                             // {
-                            //     for(int j = 0; j < pose_vec[i].size(); j++){
+                            //     for(int j = 0; j < pose_vecs[i].size(); j++){
                             //         std::cout.precision(16);
-                            //         std::cout << pose_vec [i][j] << ' ';
+                            //         std::cout << pose_vecs [i][j] << ' ';
                             //     }
                             //     std::cout << std::endl;
                             // }
@@ -123,17 +200,23 @@ main (int argc, char** argv)
                         else std::cout << "Unable to open " << argv[2] << " file"; 
                     }
                 }
+                else 
+                {
+                    std::cout << "please give the pose data." <<std::endl;
+                    showHelp (argv[0]);
+                    return -1;
+                }
 
                 endTime = clock();
-                std::cout << "Pose load Time : " <<(double)(endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
+                std::cout << "Pose data load Time : " <<(double)(endTime - startTime) / CLOCKS_PER_SEC << "s" << std::endl;
 
                 Eigen::Quaterniond q0;
                 Eigen::Affine3d T0 = Eigen::Affine3d::Identity();
-                Eigen::Vector3d t0(pose_vec[0][0], pose_vec[0][1], pose_vec[0][2]);
-                q0.w() = pose_vec[0][4];
-                q0.x() = pose_vec[0][5];
-                q0.y() = pose_vec[0][6];
-                q0.z() = pose_vec[0][7];
+                Eigen::Vector3d t0(pose_vecs[0][0], pose_vecs[0][1], pose_vecs[0][2]);
+                q0.w() = pose_vecs[0][4];
+                q0.x() = pose_vecs[0][5];
+                q0.y() = pose_vecs[0][6];
+                q0.z() = pose_vecs[0][7];
                 T0.rotate(q0);
                 T0.translation() << (0,0,0);
 
@@ -165,17 +248,19 @@ main (int argc, char** argv)
                         if (it != time_list.end()){
                             frame_idx = it - time_list.begin();
                             std::cout << "frame_idx : " << frame_idx << std::endl;}
-                        else
-                            std::cout << "Element not found in time_list\n";
+                        else {
+                            std::cout << "timestamp not found in time_list\n";
+                            continue;}
 
+                        // change to current frame to first frame transform, inverse maybe use another way
                         Eigen::Quaterniond q;
                         Eigen::Affine3d T = Eigen::Affine3d::Identity();
                         Eigen::Affine3d Ts = Eigen::Affine3d::Identity();
-                        Eigen::Vector3d t(pose_vec[frame_idx][0], pose_vec[frame_idx][1], pose_vec[frame_idx][2]);
-                        q.w() = pose_vec[frame_idx][4];
-                        q.x() = pose_vec[frame_idx][5];
-                        q.y() = pose_vec[frame_idx][6];
-                        q.z() = pose_vec[frame_idx][7];
+                        Eigen::Vector3d t(pose_vecs[frame_idx][0], pose_vecs[frame_idx][1], pose_vecs[frame_idx][2]);
+                        q.w() = pose_vecs[frame_idx][4];
+                        q.x() = pose_vecs[frame_idx][5];
+                        q.y() = pose_vecs[frame_idx][6];
+                        q.z() = pose_vecs[frame_idx][7];
                         std::cout<< q.w()*q.w() + q.x()*q.x() + q.y()*q.y() + q.z()*q.z() <<std::endl;
                         T.rotate(q);
                         T.translation() = t - t0;
@@ -209,27 +294,28 @@ main (int argc, char** argv)
                         // pmf.setMaxDistance(3.0f);
                         // pmf.extract(ground->indices);
 
-                        pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
-                        pcl::PointIndices::Ptr ground (new pcl::PointIndices);
-                        // Create the segmentation object
-                        pcl::SACSegmentation<pcl::PointXYZ> seg;
-                        // Optional
-                        seg.setOptimizeCoefficients (true);
-                        // Mandatory
-                        seg.setModelType (pcl::SACMODEL_PLANE);
-                        seg.setMethodType (pcl::SAC_RANSAC);
-                        seg.setDistanceThreshold (0.01);
+                        // pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+                        // pcl::PointIndices::Ptr ground (new pcl::PointIndices);
+                        // // Create the segmentation object
+                        // pcl::SACSegmentation<pcl::PointXYZ> seg;
+                        // // Optional
+                        // seg.setOptimizeCoefficients (true);
+                        // // Mandatory
+                        // seg.setModelType (pcl::SACMODEL_PLANE);
+                        // seg.setMethodType (pcl::SAC_RANSAC);
+                        // seg.setDistanceThreshold (0.01);
 
-                        seg.setInputCloud (source_cloud);
-                        seg.segment (*ground, *coefficients);
+                        // seg.setInputCloud (source_cloud);
+                        // seg.segment (*ground, *coefficients);
 
-                        pcl::ExtractIndices<pcl::PointXYZ> extract;
-                        extract.setInputCloud (source_cloud);
-                        extract.setIndices (ground);
-                        extract.filter (*source_cloud_filtered);
+                        // pcl::ExtractIndices<pcl::PointXYZ> extract;
+                        // extract.setInputCloud (source_cloud);
+                        // extract.setIndices (ground);
+                        // extract.filter (*source_cloud_filtered);
 
-                        end_time_1 = clock();
-                        std::cout << "ground filter Time : " <<(double)(end_time_1 - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+                        // end_time_1 = clock();
+                        // std::cout << "ground filter Time : " <<(double)(end_time_1 - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+                        downSample_filter (source_cloud, source_cloud_filtered. filter_type="VoxelGrid")
 
                         // outlier removal
                         pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
@@ -277,7 +363,7 @@ main (int argc, char** argv)
                         frame_idx += 1;
                     }
                     std::cout << "count :" << count << std::endl;
-                    // count += 1;
+                    count += 1;
                     }
                 }
                 //viewer.setPosition(800, 400); // Setting visualiser window position
