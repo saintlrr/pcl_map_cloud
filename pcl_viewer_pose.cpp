@@ -26,8 +26,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#define NUM 50
-#define DOWNSAMPLE_RATE 10
+#define NUM 140
+#define DOWNSAMPLE_RATE 5
 
 // This function displays the help
 void
@@ -44,7 +44,7 @@ std::vector<T> downSample(std::vector<T> vec, int rate = DOWNSAMPLE_RATE)
 {
     std::vector<T> vec_new;
     typename std::vector<T>::iterator vec_iterator;
-    for (vec_iterator = vec.begin(); vec_iterator != vec.end(); vec_iterator += DOWNSAMPLE_RATE)
+    for (vec_iterator = vec.begin()+1000; vec_iterator != vec.end(); vec_iterator += DOWNSAMPLE_RATE)
     {
         vec_new.push_back(*vec_iterator);
     }
@@ -53,7 +53,7 @@ std::vector<T> downSample(std::vector<T> vec, int rate = DOWNSAMPLE_RATE)
 
 // filter and downsample point cloud
 template <typename PointT> void
-downSample_filter (pcl::PointCloud<PointT> &source_cloud, pcl::PointCloud<PointT> &source_cloud_filtered. filter_type="VoxelGrid")
+downSample_filter (typename boost::shared_ptr<pcl::PointCloud<PointT> > source_cloud, typename boost::shared_ptr<pcl::PointCloud<PointT> > source_cloud_filtered, std::string filter_type="VoxelGrid")
 {
     clock_t start_time, end_time;
     start_time = clock();
@@ -99,6 +99,10 @@ downSample_filter (pcl::PointCloud<PointT> &source_cloud, pcl::PointCloud<PointT
         extract.setInputCloud (source_cloud);
         extract.setIndices (ground);
         extract.filter (*source_cloud_filtered);
+    }
+    else if (filter_type == "None")
+    {
+        *source_cloud_filtered = *source_cloud;
     }
     end_time = clock();
     std::cout << "ground filter Time : " <<(double)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
@@ -315,7 +319,7 @@ main (int argc, char** argv)
 
                         // end_time_1 = clock();
                         // std::cout << "ground filter Time : " <<(double)(end_time_1 - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
-                        downSample_filter (source_cloud, source_cloud_filtered. filter_type="VoxelGrid")
+                        downSample_filter (source_cloud, source_cloud_filtered, "None");
 
                         // outlier removal
                         pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
