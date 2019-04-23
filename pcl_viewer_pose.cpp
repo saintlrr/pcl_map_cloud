@@ -26,7 +26,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#define NUM 5
+#define NUM 10
 #define DOWNSAMPLE_RATE 5
 
 // This function displays the help
@@ -44,7 +44,7 @@ std::vector<T> downSample(std::vector<T> vec, int rate = DOWNSAMPLE_RATE)
 {
     std::vector<T> vec_new;
     typename std::vector<T>::iterator vec_iterator;
-    for (vec_iterator = vec.begin(); vec_iterator < vec.end(); vec_iterator += DOWNSAMPLE_RATE)
+    for (vec_iterator = vec.begin()+1100; vec_iterator < vec.end()-150; vec_iterator += DOWNSAMPLE_RATE)
     {
         vec_new.push_back(*vec_iterator);
     }
@@ -311,6 +311,13 @@ main (int argc, char** argv)
                         std::cout << "PointCloud after filtering: " << source_cloud_filtered->width * source_cloud_filtered->height 
                             << " data points (" << pcl::getFieldsList (*source_cloud_filtered) << ")." << std::endl;
 
+                        // output point cloud
+                        // for (pcl::PointCloud<pcl::PointXYZI>::iterator ii = (*source_cloud_filtered).begin(); ii<(*source_cloud_filtered).end() ;
+                        //     ii++)
+                        //     {
+                        //         std::cout << ii->x <<" " <<ii->y<< " "<<ii->z <<" "<<ii->intensity <<std::endl;
+                        //     }
+
                         // Executing the transformation
                         clock_t start_time, end_time;
                         start_time = clock();
@@ -341,10 +348,9 @@ main (int argc, char** argv)
                         // }
 
                         printf ("%s\n", ent->d_name);
-                        frame_idx += 1;
+                        std::cout << "count :" << count << std::endl;
+                        count += 1;
                     }
-                    std::cout << "count :" << count << std::endl;
-                    count += 1;
                     }
                 }
                 //viewer.setPosition(800, 400); // Setting visualiser window position
