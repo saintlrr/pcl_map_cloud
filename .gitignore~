@@ -1,0 +1,10 @@
+*.o
+CMakeFiles/
+*.txt
+!CMakeLists.txt
+Makefile
+*.pcd
+*
+!*.c
+!*.cpp
+*./

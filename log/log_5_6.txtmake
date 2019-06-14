@@ -1,0 +1,108 @@
+Pose data load Time : 0.001316s
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 59
+quaternion square :1
+Ts translation: 24.9024
+81.3104
+-2.50856
+read pcd file successfult
+Octree downsample filter Time : 0.129251s
+Statistical outlier filter Time : 0.924984s
+PointCloud before filtering: 194830 data points (x y z intensity).PointCloud after filtering: 186701 data points (x y z intensity).
+transform Time : 0.004728s
+591.pcd
+count :0
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 12
+quaternion square :1
+Ts translation: 43.3915
+-2.45423
+0.383605
+read pcd file successfult
+Octree downsample filter Time : 0.106378s
+Statistical outlier filter Time : 0.988716s
+PointCloud before filtering: 209352 data points (x y z intensity).PointCloud after filtering: 199581 data points (x y z intensity).
+NDT has converged1, score is 1265.57
+translation between before and after scan matching: 0
+0
+0
+NDT scan matching time : 12.6986s
+transform Time : 12.7058s
+121.pcd
+count :1
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 29
+quaternion square :1
+Ts translation: 89.231
+23.7482
+-0.727844
+read pcd file successfult
+Octree downsample filter Time : 0.119152s
+Statistical outlier filter Time : 0.920958s
+PointCloud before filtering: 199568 data points (x y z intensity).PointCloud after filtering: 192005 data points (x y z intensity).
+Pose data load Time : 0.001355s
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 59
+quaternion square :1
+Ts translation: 24.9024
+81.3104
+-2.50856
+read pcd file successfult
+Octree downsample filter Time : 0.128785s
+Statistical outlier filter Time : 0.921647s
+PointCloud before filtering: 194830 data points (x y z intensity).PointCloud after filtering: 186701 data points (x y z intensity).
+transform Time : 0.004859s
+591.pcd
+count :0
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 12
+quaternion square :1
+Ts translation: 43.3915
+-2.45423
+0.383605
+read pcd file successfult
+Octree downsample filter Time : 0.106261s
+Statistical outlier filter Time : 0.942451s
+PointCloud before filtering: 209352 data points (x y z intensity).PointCloud after filtering: 199581 data points (x y z intensity).
+NDT has converged1, score is 1265.57
+translation between before and after scan matching: 0
+0
+0
+NDT scan matching time : 12.723s
+transform Time : 12.7304s
+121.pcd
+count :1
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+timestamp not found in time_list
+frame_idx : 29
+quaternion square :1
+Ts translation: 89.231
+23.7482
+-0.727844
+read pcd file successfult
+Octree downsample filter Time : 0.118667s
+Statistical outlier filter Time : 0.920815s
+PointCloud before filtering: 199568 data points (x y z intensity).PointCloud after filtering: 192005 data points (x y z intensity).
